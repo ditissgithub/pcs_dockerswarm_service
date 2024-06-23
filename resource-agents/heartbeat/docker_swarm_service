@@ -1,0 +1,210 @@
+#!/bin/sh
+set -x
+#
+# Manage Docker Swarm Service with Pacemaker
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+#######################################################################
+# Initialization:
+OCF_FUNCTIONS_DIR="/usr/lib/ocf/lib/heartbeat"
+. ${OCF_FUNCTIONS_DIR}/ocf-shellfuncs
+
+#######################################################################
+
+#
+# Defaults
+#
+: ${DOCKER_COMPOSE_FILE:=/cont_env/docker-compose.yml}
+: ${SERVICE_NAME:=xcat_stack_xcat}
+: ${STACK_NAME:=xcat_stack}
+
+export DOCKER_HOST=unix:///var/run/docker.sock
+
+meta_data() {
+    cat <<END
+<?xml version="1.0"?>
+<!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
+<resource-agent name="docker_swarm_service">
+<version>1.0</version>
+
+<longdesc lang="en">
+Resource Agent for Docker Swarm Service Management.
+
+It manages Docker Swarm services with Docker CLI.
+
+</longdesc>
+<shortdesc lang="en">Docker Swarm Service Resource Agent</shortdesc>
+
+<parameters>
+
+<parameter name="docker_compose_file" unique="0">
+<longdesc lang="en">
+Path to Docker Compose file for deploying the service
+</longdesc>
+<shortdesc lang="en">Docker Compose file path</shortdesc>
+<content type="string" default="${DOCKER_COMPOSE_FILE}" />
+</parameter>
+
+<parameter name="service_name" unique="1" required="1">
+<longdesc lang="en">
+Name of the Docker Swarm service to manage
+</longdesc>
+<shortdesc lang="en">Service name</shortdesc>
+<content type="string" default="${SERVICE_NAME}" />
+</parameter>
+
+<parameter name="stack_name" unique="0" required="1">
+<longdesc lang="en">
+Name of the Docker Swarm stack
+</longdesc>
+<shortdesc lang="en">Stack name</shortdesc>
+<content type="string" default="${STACK_NAME}" />
+</parameter>
+
+</parameters>
+
+<actions>
+<action name="start"        timeout="30s" />
+<action name="stop"         timeout="30s" />
+<action name="monitor"      timeout="30s" interval="20s" depth="0" />
+<action name="migrate_to"   timeout="30s" />
+<action name="migrate_from" timeout="30s" />
+<action name="meta-data"    timeout="5s" />
+<action name="validate"     timeout="10s" />
+<action name="validate-all" timeout="10s" />
+</actions>
+</resource-agent>
+END
+}
+
+#######################################################################
+
+docker_swarm_usage() {
+    cat <<END
+usage: $0 {start|stop|monitor|migrate_to|migrate_from|validate|validate-all|meta-data}
+Expects to have a fully populated OCF RA-compliant environment set.
+END
+}
+
+docker_swarm_start() {
+    ocf_log info "Checking if Docker Swarm service ${SERVICE_NAME} is already running."
+    docker service ls | grep -w "${SERVICE_NAME}" >/dev/null 2>&1
+    if [ $? -eq 0 ]; then
+        ocf_log info "Docker Swarm service ${SERVICE_NAME} is already running."
+        return $OCF_SUCCESS
+    else
+        ocf_log info "Attempting to start Docker Swarm service ${SERVICE_NAME} with stack ${STACK_NAME} using compose file ${DOCKER_COMPOSE_FILE}..."
+        docker stack deploy --compose-file "${DOCKER_COMPOSE_FILE}" "${STACK_NAME}" >/var/log/docker_swarm_service.log 2>&1
+        if [ $? -ne 0 ]; then
+            ocf_log err "Failed to start Docker Swarm service ${SERVICE_NAME}. See /var/log/docker_swarm_service.log for details."
+            return $OCF_ERR_GENERIC
+        fi
+
+        ocf_log info "Docker Swarm service ${SERVICE_NAME} started successfully."
+        return $OCF_SUCCESS
+    fi
+}
+
+docker_swarm_stop() {
+    ocf_log info "Checking if Docker Swarm service ${SERVICE_NAME} is running."
+    docker service ls | grep -w "${SERVICE_NAME}" >/dev/null 2>&1
+    if [ $? -ne 0 ]; then
+        ocf_log info "Docker Swarm service ${SERVICE_NAME} is already stopped."
+        return $OCF_SUCCESS
+    fi
+
+    ocf_log info "Stopping Docker Swarm service ${SERVICE_NAME} in stack ${STACK_NAME}..."
+#    docker stack rm "${STACK_NAME}" >/var/log/docker_swarm_service.log 2>&1
+    docker service ls | grep -w "${SERVICE_NAME}" >/var/log/docker_swarm_service.log 2>&1
+    if [ $? -ne 0 ]; then
+        ocf_log err "Failed to stop Docker Swarm service ${SERVICE_NAME}. See /var/log/docker_swarm_service.log for details."
+        return $OCF_ERR_GENERIC
+    fi
+
+    ocf_log info "Docker Swarm service ${SERVICE_NAME} stopped successfully."
+    return $OCF_SUCCESS
+}
+
+docker_swarm_monitor() {
+    ocf_log info "Monitoring Docker Swarm service ${SERVICE_NAME}."
+    docker service ls | grep -w "${SERVICE_NAME}" >/dev/null 2>&1
+    if [ $? -eq 0 ]; then
+        ocf_log info "Docker Swarm service ${SERVICE_NAME} is running."
+        return $OCF_SUCCESS
+    else
+        ocf_log info "Docker Swarm service ${SERVICE_NAME} is not running."
+        return $OCF_NOT_RUNNING
+    fi
+}
+
+docker_swarm_validate() {
+    ocf_log info "Validating Docker Swarm service configuration."
+    check_binary docker
+
+    if [ ! -f "${DOCKER_COMPOSE_FILE}" ]; then
+        ocf_exit_reason "Docker Compose file ${DOCKER_COMPOSE_FILE} not found."
+        return $OCF_ERR_CONFIGURED
+    fi
+
+    return $OCF_SUCCESS
+}
+
+case $__OCF_ACTION in
+    meta-data)
+        meta_data
+        exit $OCF_SUCCESS
+        ;;
+esac
+
+DOCKER_COMPOSE_FILE="${OCF_RESKEY_docker_compose_file:-${DOCKER_COMPOSE_FILE}}"
+SERVICE_NAME="${OCF_RESKEY_service_name:-${SERVICE_NAME}}"
+STACK_NAME="${OCF_RESKEY_stack_name:-${STACK_NAME}}"
+
+case $__OCF_ACTION in
+    start)
+        docker_swarm_validate || exit $?
+        docker_swarm_start
+        ;;
+    stop)
+        docker_swarm_stop
+        ;;
+    monitor)
+        docker_swarm_monitor
+        ;;
+    migrate_to)
+        ocf_log info "Migrating ${OCF_RESOURCE_INSTANCE} to ${OCF_RESKEY_CRM_meta_migrate_target}."
+        docker_swarm_stop
+        ;;
+    migrate_from)
+        ocf_log info "Migrating ${OCF_RESOURCE_INSTANCE} from ${OCF_RESKEY_CRM_meta_migrate_source}."
+        docker_swarm_start
+        ;;
+    validate|validate-all)
+        docker_swarm_validate
+        ;;
+    usage|help)
+        docker_swarm_usage
+        exit $OCF_SUCCESS
+        ;;
+    *)
+        docker_swarm_usage
+        exit $OCF_ERR_UNIMPLEMENTED
+        ;;
+esac
+
+rc=$?
+ocf_log debug "${OCF_RESOURCE_INSTANCE} $__OCF_ACTION : $rc"
+exit $rc
+
