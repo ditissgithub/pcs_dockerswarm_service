@@ -1,0 +1,16 @@
+[Unit]
+Description=Docker Swarm Service Manager
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+ExecStart=/usr/lib/ocf/resource.d/heartbeat/docker_swarm_service start
+ExecStop=/usr/lib/ocf/resource.d/heartbeat/docker_swarm_service stop
+ExecReload=/usr/lib/ocf/resource.d/heartbeat/docker_swarm_service reload
+Restart=always
+RestartSec=10
+EnvironmentFile=-/etc/sysconfig/docker_swarm_service
+
+[Install]
+WantedBy=multi-user.target
