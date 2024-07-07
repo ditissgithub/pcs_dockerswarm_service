@@ -26,7 +26,7 @@ OCF_FUNCTIONS_DIR="/usr/lib/ocf/lib/heartbeat"
 #
 # Defaults
 #
-: ${DOCKER_COMPOSE_FILE:=/cont_env/docker-compose.yml}
+: ${DOCKER_COMPOSE_FILE:=/drbd/cont_env/docker-compose.yml}
 : ${SERVICE_NAME:=xcat_stack_xcat}
 : ${STACK_NAME:=xcat_stack}
 
