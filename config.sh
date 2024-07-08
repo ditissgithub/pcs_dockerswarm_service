@@ -28,7 +28,7 @@ else
     exit 1
 fi
 systemctl daemon-reload
-
+systemctl enable docker_swarm_service.service
 echo "Integration completed successfully."
 
 rm  -rf ./resource-agents
