@@ -29,6 +29,7 @@ OCF_FUNCTIONS_DIR="/usr/lib/ocf/lib/heartbeat"
 : ${DOCKER_COMPOSE_FILE:=/drbd/cont_env/docker-compose.yml}
 : ${SERVICE_NAME:=xcat_stack_xcat}
 : ${STACK_NAME:=xcat_stack}
+: ${DOCKER_ENV_FILE:=/drbd/cont_env/.env}
 
 export DOCKER_HOST=unix:///var/run/docker.sock
 
@@ -73,6 +74,14 @@ Name of the Docker Swarm stack
 <content type="string" default="${STACK_NAME}" />
 </parameter>
 
+<parameter name="docker_env_file" unique="0">
+<longdesc lang="en">
+Path to Docker environment file
+</longdesc>
+<shortdesc lang="en">Docker environment file path</shortdesc>
+<content type="string" default="${DOCKER_ENV_FILE}" />
+</parameter>
+
 </parameters>
 
 <actions>
@@ -106,6 +115,7 @@ docker_swarm_start() {
         return $OCF_SUCCESS
     else
         ocf_log info "Attempting to start Docker Swarm service ${SERVICE_NAME} with stack ${STACK_NAME} using compose file ${DOCKER_COMPOSE_FILE}..."
+        export $(cat ${DOCKER_ENV_FILE}) >/dev/null 2>&1
         docker stack deploy --compose-file "${DOCKER_COMPOSE_FILE}" "${STACK_NAME}" >/var/log/docker_swarm_service.log 2>&1
         if [ $? -ne 0 ]; then
             ocf_log err "Failed to start Docker Swarm service ${SERVICE_NAME}. See /var/log/docker_swarm_service.log for details."
