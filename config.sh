@@ -28,4 +28,8 @@ else
     exit 1
 fi
 systemctl daemon-reload
+
 echo "Integration completed successfully."
+
+rm  -rf ./resource-agents
+rm  -rf ./systemd
