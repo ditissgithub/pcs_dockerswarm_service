@@ -27,5 +27,5 @@ else
     echo "Required arguments not found in docker_swarm_service script."
     exit 1
 fi
-
+systemctl daemon-reload
 echo "Integration completed successfully."
