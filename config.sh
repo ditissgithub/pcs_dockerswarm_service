@@ -30,6 +30,7 @@ fi
 systemctl daemon-reload
 systemctl enable docker_swarm_service.service
 echo "Integration completed successfully."
-
+#create resource of docker swarm service
+pcs resource create docker_swarm_service ocf:heartbeat:docker_swarm_service service_name=xcat_stack_xcat stack_name=xcat_stack  op monitor interval=30s
 rm  -rf ./resource-agents
 rm  -rf ./systemd
