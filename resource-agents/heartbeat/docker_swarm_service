@@ -148,7 +148,7 @@ docker_swarm_stop() {
         ocf_log info "Stopping Docker Swarm service ${SERVICE_NAME} in stack ${STACK_NAME}..."
 
         # Stop and remove running containers associated with the service
-        docker rm -f $(docker ps -q --filter "name=xcat_stack_xcat") >/var/log/docker_swarm_service.log 2>&1
+        docker rm -f $(docker ps -q --filter "name=${SERVICE_NAME}") >/var/log/docker_swarm_service.log 2>&1
 
         # Uncomment the following line if you want to remove the stack as well
         # docker stack rm "${STACK_NAME}" >/var/log/docker_swarm_service.log 2>&1
