@@ -1,5 +1,4 @@
 #!/bin/sh
-set -x
 #
 # Manage Docker Swarm Service with Pacemaker
 #
@@ -30,7 +29,7 @@ OCF_FUNCTIONS_DIR="/usr/lib/ocf/lib/heartbeat"
 : ${SERVICE_NAME:=xcat_stack_xcat}
 : ${STACK_NAME:=xcat_stack}
 : ${DOCKER_ENV_FILE:=/drbd/cont_env/.env}
-
+: ${DRBD_XCATDATA_PATH:=/drbd/xcatdata}
 export DOCKER_HOST=unix:///var/run/docker.sock
 
 meta_data() {
@@ -82,6 +81,14 @@ Path to Docker environment file
 <content type="string" default="${DOCKER_ENV_FILE}" />
 </parameter>
 
+<parameter name="drbd_xcatdata_path" unique="0">
+<longdesc lang="en">
+Path to DRBD xcatdata persistent volume
+</longdesc>
+<shortdesc lang="en">DRBD xcatdata persistent volume path</shortdesc>
+<content type="string" default="${DRBD_XCATDATA_PATH}" />
+</parameter>
+
 </parameters>
 
 <actions>
@@ -129,15 +136,28 @@ docker_swarm_start() {
 
 docker_swarm_stop() {
     ocf_log info "Checking if Docker Swarm service ${SERVICE_NAME} is running."
-    docker service ls | grep -w "${SERVICE_NAME}" >/dev/null 2>&1
-    if [ $? -ne 0 ]; then
+
+    # Check if the service is running
+    if ! docker service ls | grep -w "${SERVICE_NAME}" >/dev/null 2>&1; then
         ocf_log info "Docker Swarm service ${SERVICE_NAME} is already stopped."
         return $OCF_SUCCESS
     fi
 
-    ocf_log info "Stopping Docker Swarm service ${SERVICE_NAME} in stack ${STACK_NAME}..."
-#    docker stack rm "${STACK_NAME}" >/var/log/docker_swarm_service.log 2>&1
-    docker service ls | grep -w "${SERVICE_NAME}" >/var/log/docker_swarm_service.log 2>&1
+    # Check if the DRBD_XCATDATA_PATH directory does not exist
+    if [ ! -d "${DRBD_XCATDATA_PATH}" ]; then
+        ocf_log info "Stopping Docker Swarm service ${SERVICE_NAME} in stack ${STACK_NAME}..."
+
+        # Stop and remove running containers associated with the service
+        docker rm -f $(docker ps -q --filter "name=xcat_stack_xcat") >/var/log/docker_swarm_service.log 2>&1
+
+        # Uncomment the following line if you want to remove the stack as well
+        # docker stack rm "${STACK_NAME}" >/var/log/docker_swarm_service.log 2>&1
+
+        # Uncomment the following line if you want to check if the service is running again after stopping
+        # docker service ls | grep -w "${SERVICE_NAME}" >/var/log/docker_swarm_service.log 2>&1
+    fi
+
+    # Check the exit status of the previous command
     if [ $? -ne 0 ]; then
         ocf_log err "Failed to stop Docker Swarm service ${SERVICE_NAME}. See /var/log/docker_swarm_service.log for details."
         return $OCF_ERR_GENERIC
@@ -146,6 +166,7 @@ docker_swarm_stop() {
     ocf_log info "Docker Swarm service ${SERVICE_NAME} stopped successfully."
     return $OCF_SUCCESS
 }
+
 
 docker_swarm_monitor() {
     ocf_log info "Monitoring Docker Swarm service ${SERVICE_NAME}."
@@ -217,4 +238,3 @@ esac
 rc=$?
 ocf_log debug "${OCF_RESOURCE_INSTANCE} $__OCF_ACTION : $rc"
 exit $rc
-
