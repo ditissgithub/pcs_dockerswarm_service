@@ -35,6 +35,7 @@ Configure and apply resource creation and constraints for Docker Swarm service u
 $pcs resource create docker_swarm_service ocf:heartbeat:docker_swarm_service service_name=xcat_stack_xcat stack_name=xcat_stack  op monitor interval=30s
 
 $pcs constraint colocation add docker_swarm_service with xcatfs INFINITY
+
 $pcs constraint order start xcatfs then start docker_swarm_service
 
 ![Untitled](https://prod-files-secure.s3.us-west-2.amazonaws.com/85d770dd-d982-4f3f-97c8-f8272e096fae/ca219213-541b-4fdd-a063-efbf181ac607/Untitled.png)
