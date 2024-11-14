@@ -121,7 +121,7 @@ docker_swarm_start() {
         ocf_log info "Docker Swarm service ${SERVICE_NAME} is already running."
         return $OCF_SUCCESS
     else
-        ocf_log info "Attempting to start Docker Swarm service ${SERVICE_NAME} with stack ${STACK_NAME} using compose file ${DOCKER_COMPOSE_FIL              E}..."
+        ocf_log info "Attempting to start Docker Swarm service ${SERVICE_NAME} with stack ${STACK_NAME} using compose file ${DOCKER_COMPOSE_FILE}..."
         export $(cat ${DOCKER_ENV_FILE}) >/dev/null 2>&1
         docker stack deploy --compose-file "${DOCKER_COMPOSE_FILE}" "${STACK_NAME}" >/var/log/docker_swarm_service.log 2>&1
         if [ $? -ne 0 ]; then
