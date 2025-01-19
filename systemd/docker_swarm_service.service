@@ -5,9 +5,9 @@ Requires=docker.service
 
 [Service]
 Type=simple
-ExecStart=/usr/lib/ocf/resource.d/heartbeat/docker_swarm_service start
-ExecStop=/usr/lib/ocf/resource.d/heartbeat/docker_swarm_service stop
-ExecReload=/usr/lib/ocf/resource.d/heartbeat/docker_swarm_service reload
+ExecStart=docker ps
+ExecStop=docker rm -f $(docker ps | grep -i xcat_stack | awk {'print $1})
+ExecReload=docker rm -f $(docker ps | grep -i xcat_stack | awk {'print $1})
 Restart=always
 RestartSec=10
 EnvironmentFile=-/etc/sysconfig/docker_swarm_service
